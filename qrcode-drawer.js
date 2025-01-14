@@ -1,4 +1,6 @@
-const width = 21
+const initialVersion = 1
+const initialEcLevel = "M"
+//const width = 21
 const positioningSquareSize = 7
 const pixelWidth = 30
 const defaultColor0 = "white"
@@ -9,24 +11,62 @@ const reservedColor0 = "lightpink"
 const reservedColor1 = "darkred"
 
 
-function buildContext() {
+function buildContext(version, ecLevel) {
+	const versionEcTable = {
+		"1-L": [19, 7, 1, 19, 0, 0],
+		"1-M": [16, 10, 1, 16, 0, 0],
+		"1-Q": [13, 13, 1, 13, 0, 0],
+		"1-H": [9, 17, 1, 9, 0, 0],
+		"2-L": [34, 10, 1, 34, 0, 0],
+		"2-M": [28, 16, 1, 28, 0, 0],
+		"2-Q": [22, 22, 1, 22, 0, 0],
+		"2-H": [16, 28, 1, 16, 0, 0],
+		"3-L": [55, 15, 1, 55, 0, 0],
+		"3-M": [44, 26, 1, 44, 0, 0],
+		"3-Q": [34, 18, 2, 17, 0, 0],
+		"3-H": [26, 22, 2, 13, 0, 0],
+	}
 	let context = {
+		_version: version,
 		_ecLevel: "L",
 		_maskPattern: 4,
-		_size: width,
+		_size: null,
+		_versionEcInfo: null,
 	}
 	context.setEcLevel = function(lvl) {
 		if (lvl === "L" || lvl === "M" || lvl === "Q" || lvl === "H") {
 			context._ecLevel = lvl
 		} else {
-			error("error correction level do not exists:", lvl)
+			throw "error correction level do not exists: " + lvl
 		}
 	}
 	context.setMaskPattern = function(pattern) {
 		if (pattern < 0 || pattern > 7) {
-			error("mask pattern do not exists:", pattern)
+			throw "mask pattern do not exists: " + pattern
 		}
 		context._maskPattern = pattern
+	}
+	context.getWidth = function(pattern) {
+		return (context._version + 2) * 7
+	}
+	context.getCodewordsCount = function(pattern) {
+		return context._versionEcInfo[0]
+	}
+	context.getErrorCorrectionCodewordsCountPerBlock = function(pattern) {
+		return context._versionEcInfo[1]
+	}
+	context.getGroup1BlocksCount = function(pattern) {
+		return context._versionEcInfo[2]
+	}
+	context.getGroup1DataCodewordsCount = function(pattern) {
+		return context._versionEcInfo[3]
+	}
+	
+	context.setEcLevel(ecLevel)
+	let key = version + "-" + ecLevel
+	context._versionEcInfo = versionEcTable[key]
+	if (context._versionEcInfo == null) {
+		throw "versionEcTable not configured for level: " + level + " and ecLevel: " + ecLevel
 	}
 
 	return context
@@ -77,21 +117,21 @@ function buildPixel(x, y) {
 	return px
 }
 
-let context = buildContext()
+let context = buildContext(initialVersion, initialEcLevel)
 let pixels = []
 function initDrawer() {
 	// Init canvas
 	let divElt = document.querySelector("#qrcode-drawer");
 	let canvas = document.createElement('canvas');
 	canvas.style = "border: 1px solid black";
-	canvas.width = width * pixelWidth;
-	canvas.height = width * pixelWidth;
+	canvas.width = context.getWidth() * pixelWidth;
+	canvas.height = context.getWidth() * pixelWidth;
 	divElt.append(canvas);
 	let ctx = canvas.getContext("2d");
 
 	// Init pixels double array
-	for (let x = 0; x < width; x++) {
-		for (let y = 0; y < width; y++) {
+	for (let x = 0; x < context.getWidth(); x++) {
+		for (let y = 0; y < context.getWidth(); y++) {
 			if (y == 0) {
 				pixels[x] = []
 			}
@@ -116,8 +156,8 @@ function initDrawer() {
 	// Init structure
 	// positioning squares
 	initPositionningSquare(ctx, 0, 0, positioningSquareSize)
-	initPositionningSquare(ctx, width-positioningSquareSize, 0, positioningSquareSize)
-	initPositionningSquare(ctx, 0, width-positioningSquareSize, positioningSquareSize)
+	initPositionningSquare(ctx, context.getWidth()-positioningSquareSize, 0, positioningSquareSize)
+	initPositionningSquare(ctx, 0, context.getWidth()-positioningSquareSize, positioningSquareSize)
 	initBorders(ctx)
 	initDotLines(ctx)
 	
@@ -142,8 +182,8 @@ function initPositionningSquare(ctx, startX, startY, width) {
 function initBorders(ctx) {
 	// first vertical
 	let x = positioningSquareSize
-	for (let y = 0; y < width; y++) {
-		if (y < positioningSquareSize + 1 || y > width - positioningSquareSize - 2) {
+	for (let y = 0; y < context.getWidth(); y++) {
+		if (y < positioningSquareSize + 1 || y > context.getWidth() - positioningSquareSize - 2) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -151,8 +191,8 @@ function initBorders(ctx) {
 		}
 	}
 	// second vertical
-	x = width - positioningSquareSize - 1
-	for (let y = 0; y < width; y++) {
+	x = context.getWidth() - positioningSquareSize - 1
+	for (let y = 0; y < context.getWidth(); y++) {
 		if (y < positioningSquareSize + 1) {
 			let px = pixels[x][y]
 			px.setValue(0)
@@ -162,8 +202,8 @@ function initBorders(ctx) {
 	}
 	// first horizontal
 	let y = positioningSquareSize
-	for (let x = 0; x < width; x++) {
-		if (x < positioningSquareSize + 1 || x > width - positioningSquareSize - 2) {
+	for (let x = 0; x < context.getWidth(); x++) {
+		if (x < positioningSquareSize + 1 || x > context.getWidth() - positioningSquareSize - 2) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -171,8 +211,8 @@ function initBorders(ctx) {
 		}
 	}
 	// second horizontal
-	y = width - positioningSquareSize - 1
-	for (let x = 0; x < width; x++) {
+	y = context.getWidth() - positioningSquareSize - 1
+	for (let x = 0; x < context.getWidth(); x++) {
 		if (x < positioningSquareSize + 1) {
 			let px = pixels[x][y]
 			px.setValue(0)
@@ -185,7 +225,7 @@ function initBorders(ctx) {
 function initDotLines(ctx) {
 	// vertical one
 	let x = positioningSquareSize - 1
-	for (let y = positioningSquareSize + 1; y < width - positioningSquareSize - 1; y++) {
+	for (let y = positioningSquareSize + 1; y < context.getWidth() - positioningSquareSize - 1; y++) {
 		let px = pixels[x][y]
 		px.setValue(0)
 		if (y % 2 == 0) {
@@ -196,7 +236,7 @@ function initDotLines(ctx) {
 	}
 	// horizontal one
 	let y = positioningSquareSize - 1
-	for (let x = positioningSquareSize + 1; x < width - positioningSquareSize - 1; x++) {
+	for (let x = positioningSquareSize + 1; x < context.getWidth() - positioningSquareSize - 1; x++) {
 		let px = pixels[x][y]
 		px.setValue(0)
 		if (x % 2 == 0) {
@@ -206,7 +246,7 @@ function initDotLines(ctx) {
 		px.draw(ctx)
 	}
 	// Dark module (lone pixel)
-	let px = pixels[positioningSquareSize + 1][width - positioningSquareSize - 1]
+	let px = pixels[positioningSquareSize + 1][context.getWidth() - positioningSquareSize - 1]
 	px.setValue(1)
 	px.reserved = true
 	px.draw(ctx)
@@ -266,6 +306,7 @@ function drawFormatInfo(ctx) {
 	let formatString = format.toString(2)
 	
 	// top left format
+	const width = context.getWidth()
 	const topLeftFormatCoords = [[0,positioningSquareSize+1],[1,positioningSquareSize+1],[2,positioningSquareSize+1],[3,positioningSquareSize+1],[4,positioningSquareSize+1],[5,positioningSquareSize+1],[7,positioningSquareSize+1],[8,positioningSquareSize+1],[positioningSquareSize+1,7],[positioningSquareSize+1,5],[positioningSquareSize+1,4],[positioningSquareSize+1,3],[positioningSquareSize+1,2],[positioningSquareSize+1,1],[positioningSquareSize+1,0]]
 	const secondFormatCoords = [[positioningSquareSize+1,width-1],[positioningSquareSize+1,width-2],[positioningSquareSize+1,width-3],[positioningSquareSize+1,width-4],[positioningSquareSize+1,width-5],[positioningSquareSize+1,width-6],[positioningSquareSize+1,width-7],[width-8,positioningSquareSize+1],[width-7,positioningSquareSize+1],[width-6,positioningSquareSize+1],[width-5,positioningSquareSize+1],[width-4,positioningSquareSize+1],[width-3,positioningSquareSize+1],[width-2,positioningSquareSize+1],[width-1,positioningSquareSize+1]]
 
@@ -296,8 +337,74 @@ function padGenerator(ecBits) {
 		let padded = generator << (k - 1)
 		return padded
 	}
-	error("error padding generator", ecbits)
+	throw "error padding generator: " + ecbits
+}
+
+function padBinaryWordString(word, size) {
+	// Add zeros to pad binary word to the size
+	if (word.length < size) {
+		while (word.length < size) {
+			word = "0" + word
+		}
+	}
+	return word
+}
+
+function byteModeEncode(data) {
+	const modeIndicator = "0100" // byte encoding mode indicator
+	const finishingPattern = "1110110000010001"
+	let codewordsCount = context.getCodewordsCount()
+
+	let encodedData = ""
+	
+	// 1- Mode Indicator
+	encodedData += modeIndicator
+
+	// 2- Data length
+	let charCount = padBinaryWordString(data.length.toString(2), 9)
+	encodedData += charCount // data length encoded on 9 bits for v1 qrcode
+
+	// 3- Data bytes
+	let binaryData = ""
+	for (let k = 0; k < data.length; k++) {
+		// encoding in ISO 8859-1
+		const encoder = new TextEncoder('iso-8859-1');
+		let charInt = encoder.encode(data[k])[0]
+		console.log("encoded char:", data[k], "=>", charInt)
+		binaryData += charInt.toString(2)
+	}
+	encodedData += binaryData
+
+	// 4- Terminator (up to 4 zeros)
+	if (encodedData.length < codewordsCount * 8) {
+		// Add terminator
+		let terminatorLength = Math.min(4, codewordsCount * 8 - encodedData.length)
+		for (let k = 0; k < terminatorLength; k++) {
+			encodedData += "0"
+		}
+	}
+
+	// 5- Complete last code word
+	while (encodedData.length % 8 != 0) {
+		encodedData += "0"
+	}
+	
+	console.log("encoding data:", data, "charCount", charCount, "binaryData", binaryData, "=>", encodedData) 
+
+	// 6- Add finishing pattern
+	while (encodedData.length < codewordsCount * 8) {
+		if (codewordsCount * 8 - encodedData.length > 8) {
+			encodedData += finishingPattern
+		} else {
+			encodedData += finishingPattern[0,8]
+		}
+	}
+
+	console.log("finished encoded data:", encodedData) 
+	return encodedData
 }
 
 initDrawer()
+
+byteModeEncode("foo")
 
