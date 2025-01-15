@@ -1,7 +1,7 @@
 const initialVersion = 1
 const initialEcLevel = "M"
 //const width = 21
-const positioningSquareSize = 7
+const finderPatternSize = 7
 const pixelWidth = 30
 const defaultColor0 = "white"
 const defaultColor1 = "black"
@@ -32,6 +32,7 @@ function buildContext(version, ecLevel) {
 		_maskPattern: 4,
 		_size: null,
 		_versionEcInfo: null,
+		canvas: null,
 	}
 	context.setEcLevel = function(lvl) {
 		if (lvl === "L" || lvl === "M" || lvl === "Q" || lvl === "H") {
@@ -68,6 +69,15 @@ function buildContext(version, ecLevel) {
 	if (context._versionEcInfo == null) {
 		throw "versionEcTable not configured for level: " + level + " and ecLevel: " + ecLevel
 	}
+
+	// Init canvas
+	let divElt = document.querySelector("#qrcode-drawer");
+	let canvas = document.createElement('canvas');
+	canvas.style = "border: 1px solid black";
+	canvas.width = context.getWidth() * pixelWidth;
+	canvas.height = context.getWidth() * pixelWidth;
+	divElt.append(canvas);
+	context.canvas = canvas
 
 	return context
 }
@@ -120,14 +130,7 @@ function buildPixel(x, y) {
 let context = buildContext(initialVersion, initialEcLevel)
 let pixels = []
 function initDrawer() {
-	// Init canvas
-	let divElt = document.querySelector("#qrcode-drawer");
-	let canvas = document.createElement('canvas');
-	canvas.style = "border: 1px solid black";
-	canvas.width = context.getWidth() * pixelWidth;
-	canvas.height = context.getWidth() * pixelWidth;
-	divElt.append(canvas);
-	let ctx = canvas.getContext("2d");
+	let ctx = context.canvas.getContext("2d");
 
 	// Init pixels double array
 	for (let x = 0; x < context.getWidth(); x++) {
@@ -142,7 +145,7 @@ function initDrawer() {
 	}
 
 	// Init click events
-	canvas.addEventListener("click", (event) => {
+	context.canvas.addEventListener("click", (event) => {
 		let x = Math.floor(event.layerX / pixelWidth)
 		let y = Math.floor(event.layerY / pixelWidth)
 		console.log("layerX", event.layerX, "layerY", event.layerY)
@@ -155,16 +158,16 @@ function initDrawer() {
 
 	// Init structure
 	// positioning squares
-	initPositionningSquare(ctx, 0, 0, positioningSquareSize)
-	initPositionningSquare(ctx, context.getWidth()-positioningSquareSize, 0, positioningSquareSize)
-	initPositionningSquare(ctx, 0, context.getWidth()-positioningSquareSize, positioningSquareSize)
-	initBorders(ctx)
-	initDotLines(ctx)
+	initFinderPattern(ctx, 0, 0, finderPatternSize)
+	initFinderPattern(ctx, context.getWidth()-finderPatternSize, 0, finderPatternSize)
+	initFinderPattern(ctx, 0, context.getWidth()-finderPatternSize, finderPatternSize)
+	initSeparators(ctx)
+	initTimingPatterns(ctx)
 	
 	drawFormatInfo(ctx)
 }
 
-function initPositionningSquare(ctx, startX, startY, width) {
+function initFinderPattern(ctx, startX, startY, width) {
 	for (let x = startX; x < startX + width; x++) {
 		for (let y = startY; y < startY + width; y++) {
 			let px = pixels[x][y]
@@ -179,11 +182,11 @@ function initPositionningSquare(ctx, startX, startY, width) {
 	}
 }
 
-function initBorders(ctx) {
+function initSeparators(ctx) {
 	// first vertical
-	let x = positioningSquareSize
+	let x = finderPatternSize
 	for (let y = 0; y < context.getWidth(); y++) {
-		if (y < positioningSquareSize + 1 || y > context.getWidth() - positioningSquareSize - 2) {
+		if (y < finderPatternSize + 1 || y > context.getWidth() - finderPatternSize - 2) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -191,9 +194,9 @@ function initBorders(ctx) {
 		}
 	}
 	// second vertical
-	x = context.getWidth() - positioningSquareSize - 1
+	x = context.getWidth() - finderPatternSize - 1
 	for (let y = 0; y < context.getWidth(); y++) {
-		if (y < positioningSquareSize + 1) {
+		if (y < finderPatternSize + 1) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -201,9 +204,9 @@ function initBorders(ctx) {
 		}
 	}
 	// first horizontal
-	let y = positioningSquareSize
+	let y = finderPatternSize
 	for (let x = 0; x < context.getWidth(); x++) {
-		if (x < positioningSquareSize + 1 || x > context.getWidth() - positioningSquareSize - 2) {
+		if (x < finderPatternSize + 1 || x > context.getWidth() - finderPatternSize - 2) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -211,9 +214,9 @@ function initBorders(ctx) {
 		}
 	}
 	// second horizontal
-	y = context.getWidth() - positioningSquareSize - 1
+	y = context.getWidth() - finderPatternSize - 1
 	for (let x = 0; x < context.getWidth(); x++) {
-		if (x < positioningSquareSize + 1) {
+		if (x < finderPatternSize + 1) {
 			let px = pixels[x][y]
 			px.setValue(0)
 			px.reserved = true
@@ -222,10 +225,10 @@ function initBorders(ctx) {
 	}
 }
 
-function initDotLines(ctx) {
+function initTimingPatterns(ctx) {
 	// vertical one
-	let x = positioningSquareSize - 1
-	for (let y = positioningSquareSize + 1; y < context.getWidth() - positioningSquareSize - 1; y++) {
+	let x = finderPatternSize - 1
+	for (let y = finderPatternSize + 1; y < context.getWidth() - finderPatternSize - 1; y++) {
 		let px = pixels[x][y]
 		px.setValue(0)
 		if (y % 2 == 0) {
@@ -235,8 +238,8 @@ function initDotLines(ctx) {
 		px.draw(ctx)
 	}
 	// horizontal one
-	let y = positioningSquareSize - 1
-	for (let x = positioningSquareSize + 1; x < context.getWidth() - positioningSquareSize - 1; x++) {
+	let y = finderPatternSize - 1
+	for (let x = finderPatternSize + 1; x < context.getWidth() - finderPatternSize - 1; x++) {
 		let px = pixels[x][y]
 		px.setValue(0)
 		if (x % 2 == 0) {
@@ -246,7 +249,7 @@ function initDotLines(ctx) {
 		px.draw(ctx)
 	}
 	// Dark module (lone pixel)
-	let px = pixels[positioningSquareSize + 1][context.getWidth() - positioningSquareSize - 1]
+	let px = pixels[finderPatternSize + 1][context.getWidth() - finderPatternSize - 1]
 	px.setValue(1)
 	px.reserved = true
 	px.draw(ctx)
@@ -307,8 +310,8 @@ function drawFormatInfo(ctx) {
 	
 	// top left format
 	const width = context.getWidth()
-	const topLeftFormatCoords = [[0,positioningSquareSize+1],[1,positioningSquareSize+1],[2,positioningSquareSize+1],[3,positioningSquareSize+1],[4,positioningSquareSize+1],[5,positioningSquareSize+1],[7,positioningSquareSize+1],[8,positioningSquareSize+1],[positioningSquareSize+1,7],[positioningSquareSize+1,5],[positioningSquareSize+1,4],[positioningSquareSize+1,3],[positioningSquareSize+1,2],[positioningSquareSize+1,1],[positioningSquareSize+1,0]]
-	const secondFormatCoords = [[positioningSquareSize+1,width-1],[positioningSquareSize+1,width-2],[positioningSquareSize+1,width-3],[positioningSquareSize+1,width-4],[positioningSquareSize+1,width-5],[positioningSquareSize+1,width-6],[positioningSquareSize+1,width-7],[width-8,positioningSquareSize+1],[width-7,positioningSquareSize+1],[width-6,positioningSquareSize+1],[width-5,positioningSquareSize+1],[width-4,positioningSquareSize+1],[width-3,positioningSquareSize+1],[width-2,positioningSquareSize+1],[width-1,positioningSquareSize+1]]
+	const topLeftFormatCoords = [[0,finderPatternSize+1],[1,finderPatternSize+1],[2,finderPatternSize+1],[3,finderPatternSize+1],[4,finderPatternSize+1],[5,finderPatternSize+1],[7,finderPatternSize+1],[8,finderPatternSize+1],[finderPatternSize+1,7],[finderPatternSize+1,5],[finderPatternSize+1,4],[finderPatternSize+1,3],[finderPatternSize+1,2],[finderPatternSize+1,1],[finderPatternSize+1,0]]
+	const secondFormatCoords = [[finderPatternSize+1,width-1],[finderPatternSize+1,width-2],[finderPatternSize+1,width-3],[finderPatternSize+1,width-4],[finderPatternSize+1,width-5],[finderPatternSize+1,width-6],[finderPatternSize+1,width-7],[width-8,finderPatternSize+1],[width-7,finderPatternSize+1],[width-6,finderPatternSize+1],[width-5,finderPatternSize+1],[width-4,finderPatternSize+1],[width-3,finderPatternSize+1],[width-2,finderPatternSize+1],[width-1,finderPatternSize+1]]
 
 	for (let k = 0; k < 15; k++) {
 		let val = 0
@@ -404,7 +407,70 @@ function byteModeEncode(data) {
 	return encodedData
 }
 
+function drawData(data) {
+	const shiftX = 0.2
+	const shiftY = 0.5
+	let ctx = context.canvas.getContext("2d");
+
+	let X = context.getWidth() - 2
+	let k = 0
+	while (X >= 0) {
+		// Parse upward
+		for (let y = context.getWidth() - 1; y >= 0; y--) {
+			// right column
+			let x = X + 1
+			let px = pixels[x][y]
+			if (!px.reserved) {
+				// Draw bit
+				//ctx.fillText(k, (x + shiftX) * pixelWidth, (y + shiftY) * pixelWidth)
+				px.setValue(data[k])
+				px.draw(ctx)
+				k ++	
+			}
+			// left column
+			x = X
+			px = pixels[x][y]
+			if (!px.reserved) {
+				// Draw bit
+				//ctx.fillText(k, (x + shiftX) * pixelWidth, (y + shiftY) * pixelWidth)
+				px.setValue(data[k])
+				px.draw(ctx)
+				k ++	
+			}
+		}
+		X -= 2
+		if (X == 5 || X == 6) X -- // Skip vertical timing pattern
+		// Parse downward
+		for (let y = 0; y < context.getWidth(); y++) {
+			// right column
+			let x = X + 1
+			let px = pixels[x][y]
+			if (!px.reserved) {
+				// Draw bit
+				//ctx.fillText(k, (x + shiftX) * pixelWidth, (y + shiftY) * pixelWidth)
+				px.setValue(data[k])
+				px.draw(ctx)
+				k ++	
+			}
+			// left column
+			x = X
+			px = pixels[x][y]
+			if (!px.reserved) {
+				// Draw bit
+				//ctx.fillText(k, (x + shiftX) * pixelWidth, (y + shiftY) * pixelWidth)
+				px.setValue(data[k])
+				px.draw(ctx)
+				k ++	
+			}
+
+		}
+		X -= 2
+		if (X == 5 || X == 6) X -- // Skip vertical timing pattern
+	}
+}
+
 initDrawer()
 
-byteModeEncode("foo")
+let encoded = byteModeEncode("foo")
 
+drawData(encoded)
